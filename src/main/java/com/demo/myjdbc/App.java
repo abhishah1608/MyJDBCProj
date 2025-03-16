@@ -2,10 +2,15 @@ package com.demo.myjdbc;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import com.demo.dboperation.CollectionUtils;
 import com.demo.dboperation.DataType;
@@ -113,9 +118,11 @@ public class App {
 		sb.append("Delete from Users where Username = ?;");
 		// sb.append("INSERT INTO Review (reviewId, courseId, studentId, rating,
 		// comment, reviewDate) VALUES (?, ?, ?, ?, ?, ?);");
+		
+		
 
 		ArrayList<SQLParameter> params = new ArrayList<SQLParameter>();
-		SQLParameter p = new SQLParameter(1, DataType.Integer, 1);
+		SQLParameter p = new SQLParameter(5, DataType.Integer, 1);
 
 		params.add(p);
 
@@ -148,6 +155,21 @@ public class App {
 
 		// Get single User from resultSet 1
 		User user = ReflectionMapper.getSingleMappedObject(resultMap, 1, User.class);
+		
+		Comparator<Review> sortReviews = (Review r1, Review r2) -> {
+			if(r1.getRating() > r2.getRating())
+			{
+				return 1;
+			}
+			else
+			{
+				return -1;
+			}
+		};
+		
+    	Collections.sort(reviews, sortReviews);
+		
+		
 
 		// Get total rows affected by all update queries
 		int totalUpdates = ReflectionMapper.getTotalUpdateCount(resultMap);

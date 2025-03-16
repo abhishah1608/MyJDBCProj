@@ -137,7 +137,7 @@ public class Dboperation {
 			while (true) {
 				if (isResultSet) {
 					rs = cs.getResultSet();
-				
+
 					// Map ResultSet to Corresponding Class Based on Order
 					for (Map.Entry<Class<?>, Integer> entry : resultMappings.entrySet()) {
 						if (entry.getValue() == count) {
@@ -232,127 +232,140 @@ public class Dboperation {
 	}
 
 	public <T> int insertBatch(List<T> objectList, String tableName) throws Exception {
-	    if (objectList == null || objectList.isEmpty()) return 0;
+		if (objectList == null || objectList.isEmpty())
+			return 0;
 
-	    Connection con = null;
-	    PreparedStatement ps = null;
-	    int insertedCount = 0;
+		Connection con = null;
+		PreparedStatement ps = null;
+		int insertedCount = 0;
 
-	    Class<?> clazz = objectList.get(0).getClass();
-	    Field[] allFields = clazz.getDeclaredFields();
-	    List<Field> insertableFields = new ArrayList<>();
+		Class<?> clazz = objectList.get(0).getClass();
+		Field[] allFields = clazz.getDeclaredFields();
+		List<Field> insertableFields = new ArrayList<>();
 
-	    StringBuilder columns = new StringBuilder();
-	    StringBuilder placeholders = new StringBuilder();
+		StringBuilder columns = new StringBuilder();
+		StringBuilder placeholders = new StringBuilder();
 
-	    for (Field field : allFields) {
-	        if (field.isAnnotationPresent(AutoIncrementField.class)) {
-	            continue; // Skip auto-increment fields
-	        }
-	        insertableFields.add(field);
-	        columns.append(field.getName()).append(", ");
-	        placeholders.append("?, ");
-	    }
+		for (Field field : allFields) {
+			if (field.isAnnotationPresent(AutoIncrementField.class)) {
+				continue; // Skip auto-increment fields
+			}
+			insertableFields.add(field);
+			columns.append(field.getName()).append(", ");
+			placeholders.append("?, ");
+		}
 
-	    // Remove trailing commas
-	    if (columns.length() > 0) columns.setLength(columns.length() - 2);
-	    if (placeholders.length() > 0) placeholders.setLength(placeholders.length() - 2);
+		// Remove trailing commas
+		if (columns.length() > 0)
+			columns.setLength(columns.length() - 2);
+		if (placeholders.length() > 0)
+			placeholders.setLength(placeholders.length() - 2);
 
-	    String sql = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, placeholders);
+		String sql = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columns, placeholders);
 
-	    try {
-	        con = this.createConnection();
-	        con.setAutoCommit(false);
-	        ps = con.prepareStatement(sql);
+		try {
+			con = this.createConnection();
+			con.setAutoCommit(false);
+			ps = con.prepareStatement(sql);
 
-	        for (T obj : objectList) {
-	            for (int i = 0; i < insertableFields.size(); i++) {
-	                Field field = insertableFields.get(i);
-	                field.setAccessible(true);
-	                Object value = field.get(obj);
-	                ps.setObject(i + 1, value);
-	            }
-	            ps.addBatch();
-	        }
+			for (T obj : objectList) {
+				for (int i = 0; i < insertableFields.size(); i++) {
+					Field field = insertableFields.get(i);
+					field.setAccessible(true);
+					Object value = field.get(obj);
+					ps.setObject(i + 1, value);
+				}
+				ps.addBatch();
+			}
 
-	        int[] results = ps.executeBatch();
-	        con.commit();
-	        insertedCount = results.length;
-	        System.out.println("Batch Insert Success. Total Records Inserted: " + insertedCount);
+			int[] results = ps.executeBatch();
+			con.commit();
+			insertedCount = results.length;
+			System.out.println("Batch Insert Success. Total Records Inserted: " + insertedCount);
 
-	    } catch (SQLException ex) {
-	        try {
-	            if (con != null) {
-	                con.rollback(); 
-	                System.out.println("Transaction rolled back due to error.");
-	            }
-	        } catch (SQLException rollbackEx) {
-	            System.err.println("Rollback failed: " + rollbackEx.getMessage());
-	        }
-	        ex.printStackTrace(); // Properly print exception
-	    } finally {
-	        if (ps != null) ps.close();
-	        if (con != null) con.close();
-	    }
+		} catch (SQLException ex) {
+			try {
+				if (con != null) {
+					con.rollback();
+					System.out.println("Transaction rolled back due to error.");
+				}
+			} catch (SQLException rollbackEx) {
+				System.err.println("Rollback failed: " + rollbackEx.getMessage());
+			}
+			ex.printStackTrace(); // Properly print exception
+		} finally {
+			if (ps != null)
+				ps.close();
+			if (con != null)
+				con.close();
+		}
 
-	    return insertedCount;
+		return insertedCount;
 	}
-	
-	
-    public Map<Integer, Object> executeQueryGeneric(String sql, ArrayList<SQLParameter> parameters) throws SQLException {
-        Map<Integer, Object> resultMap = new HashMap<>(); // Map of result index to data
-        Connection con = null;
-        PreparedStatement ps = null;
 
-        try {
-            con = createConnection();
-            con.setAutoCommit(false);  // Use transaction for safety
+	public Map<Integer, Object> executeQueryGeneric(String sql, ArrayList<SQLParameter> parameters)
+			throws SQLException {
+		Map<Integer, Object> resultMap = new HashMap<>(); // Map of result index to data
+		Connection con = null;
+		PreparedStatement ps = null;
 
-            ps = con.prepareStatement(sql);
-            // Set dynamic parameters
-            for (SQLParameter param : parameters) {
-                param.setParameter(ps);
-            }
+		try {
+			con = createConnection();
+			con.setAutoCommit(false); // Use transaction for safety
 
-            boolean hasResultSet = ps.execute();
-            int count = 0;
+			ps = con.prepareStatement(sql);
+			// Set dynamic parameters
+			for (SQLParameter param : parameters) {
+				param.setParameter(ps);
+			}
 
-            while (true) {
-                if (hasResultSet) {
-                    ResultSet rs = ps.getResultSet();
-                    List<Map<String, Object>> resultList = new ArrayList<>();
+			boolean hasResultSet = ps.execute();
+			int count = 0;
 
-                    ResultSetMetaData metaData = rs.getMetaData();
-                    int columnCount = metaData.getColumnCount();
+			while (true) {
+				if (hasResultSet) {
+					ResultSet rs = ps.getResultSet();
+					List<Map<String, Object>> resultList = new ArrayList<>();
 
-                    while (rs.next()) {
-                        Map<String, Object> row = new HashMap<>();
-                        for (int i = 1; i <= columnCount; i++) {
-                            row.put(metaData.getColumnLabel(i), rs.getObject(i));
-                        }
-                        resultList.add(row);
-                    }
-                    rs.close();
-                    resultMap.put(count, resultList);
-                } else {
-                    int updateCount = ps.getUpdateCount();
-                    if (updateCount == -1) break; // No more results
-                    resultMap.put(count, updateCount);  // Update count for DML
-                }
-                count++;
-                hasResultSet = ps.getMoreResults();
-            }
+					ResultSetMetaData metaData = rs.getMetaData();
+					int columnCount = metaData.getColumnCount();
 
-            con.commit();  // Commit transaction
-        } catch (SQLException e) {
-            if (con != null) con.rollback();  // Rollback on error
-            throw e;
-        } finally {
-            if (ps != null) ps.close();
-            if (con != null) con.close();
-        }
+					while (rs.next()) {
+						Map<String, Object> row = new HashMap<>();
+						for (int i = 1; i <= columnCount; i++) {
+							row.put(metaData.getColumnLabel(i), rs.getObject(i));
+						}
+						resultList.add(row);
+					}
+					rs.close();
+					resultMap.put(count, resultList);
+				} else {
+					int updateCount = ps.getUpdateCount();
+					if (updateCount == -1)
+						break; // No more results
+					resultMap.put(count, updateCount); // Update count for DML
+				}
+				count++;
+				hasResultSet = ps.getMoreResults();
+			}
 
-        return resultMap;  // ResultSet or update counts
-    }
-	
+			con.commit(); // Commit transaction
+		} catch (SQLException e) {
+			try {
+				if (con != null) {
+					con.rollback();
+				}
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
+		} finally {
+			if (ps != null)
+				ps.close();
+			if (con != null)
+				con.close();
+		}
+
+		return resultMap; // ResultSet or update counts
+	}
+
 }
