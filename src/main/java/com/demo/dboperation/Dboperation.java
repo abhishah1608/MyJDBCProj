@@ -43,7 +43,7 @@ public class Dboperation {
 	}
 
 	public HashMap<Class<?>, List<?>> Execute(String query, ArrayList<SQLParameter> parameters,
-			Map<Class<?>, Integer> resultMappings) throws SQLException {
+			Map<Class<?>, Integer> resultMappings, CustomException cex) throws SQLException {
 		HashMap<Class<?>, List<?>> resultMap = new HashMap<>();
 		Connection con = null;
 		PreparedStatement ps = null;
@@ -88,6 +88,7 @@ public class Dboperation {
 
 		} catch (SQLException ex) {
 			ex.printStackTrace();
+			cex = new CustomException(ex.getMessage());
 		} finally {
 			// Close resources
 			if (rs != null)
@@ -102,7 +103,7 @@ public class Dboperation {
 	}
 
 	public HashMap<Class<?>, List<?>> ExecuteStoredProcedure(String procedureName, ArrayList<SQLParameter> parameters,
-			Map<Class<?>, Integer> resultMappings) throws SQLException {
+			Map<Class<?>, Integer> resultMappings, CustomException cex) throws SQLException {
 		HashMap<Class<?>, List<?>> resultMap = new HashMap<>();
 		Connection con = null;
 		CallableStatement cs = null;
@@ -157,6 +158,7 @@ public class Dboperation {
 
 		} catch (SQLException ex) {
 			ex.printStackTrace();
+			cex = new CustomException(ex.getMessage());
 		} finally {
 			// Close Resources
 			if (rs != null)
@@ -170,7 +172,7 @@ public class Dboperation {
 		return resultMap;
 	}
 
-	public void insertRecord(Object obj, String tableName)
+	public void insertRecord(Object obj, String tableName, CustomException cex)
 			throws SQLException, IllegalArgumentException, IllegalAccessException {
 		Class<?> clazz = obj.getClass();
 		Field[] fields = clazz.getDeclaredFields();
@@ -218,6 +220,7 @@ public class Dboperation {
 			con.commit();
 		} catch (SQLException ex) {
 			con.rollback();
+			cex = new CustomException(ex.getMessage());
 
 		} finally {
 			if (ps != null) {
@@ -231,7 +234,7 @@ public class Dboperation {
 
 	}
 
-	public <T> int insertBatch(List<T> objectList, String tableName) throws Exception {
+	public <T> int insertBatch(List<T> objectList, String tableName, CustomException cex) throws Exception {
 		if (objectList == null || objectList.isEmpty())
 			return 0;
 
@@ -287,10 +290,14 @@ public class Dboperation {
 			try {
 				if (con != null) {
 					con.rollback();
+					cex = new CustomException(ex.getMessage());
 					System.out.println("Transaction rolled back due to error.");
+					
 				}
 			} catch (SQLException rollbackEx) {
+				cex = new CustomException(ex.getMessage());
 				System.err.println("Rollback failed: " + rollbackEx.getMessage());
+				throw new SQLException(rollbackEx.getMessage());
 			}
 			ex.printStackTrace(); // Properly print exception
 		} finally {
@@ -303,7 +310,7 @@ public class Dboperation {
 		return insertedCount;
 	}
 
-	public Map<Integer, Object> executeQueryGeneric(String sql, ArrayList<SQLParameter> parameters)
+	public Map<Integer, Object> executeQueryGeneric(String sql, ArrayList<SQLParameter> parameters, CustomException cex)
 			throws SQLException {
 		Map<Integer, Object> resultMap = new HashMap<>(); // Map of result index to data
 		Connection con = null;
@@ -357,7 +364,9 @@ public class Dboperation {
 				}
 			} catch (SQLException ex) {
 				ex.printStackTrace();
+				cex = new CustomException(ex.getMessage());
 			}
+			cex = new CustomException(e.getMessage());
 		} finally {
 			if (ps != null)
 				ps.close();
