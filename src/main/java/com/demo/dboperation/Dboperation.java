@@ -42,8 +42,34 @@ public class Dboperation {
 		return DriverManager.getConnection(this.url, this.username, this.password);
 	}
 
+	public int executeScalarQuery(String query, ArrayList<SQLParameter> parameters) throws SQLException {
+
+		con = createConnection();
+
+		try (PreparedStatement stmt = con.prepareStatement(query)) {
+
+			// Set dynamic parameters
+			if (parameters != null && !parameters.isEmpty()) {
+				for (SQLParameter param : parameters) {
+					param.setParameter(stmt);
+				}
+			}
+
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					return rs.getInt(1);
+				}
+			}
+		}
+
+		if (con != null) {
+			con.close();
+		}
+		return 0;
+	}
+
 	public HashMap<Class<?>, List<?>> Execute(String query, ArrayList<SQLParameter> parameters,
-			Map<Class<?>, Integer> resultMappings, CustomException cex) throws SQLException {
+			Map<Class<?>, Integer> resultMappings) throws SQLException {
 		HashMap<Class<?>, List<?>> resultMap = new HashMap<>();
 		Connection con = null;
 		PreparedStatement ps = null;
@@ -88,7 +114,7 @@ public class Dboperation {
 
 		} catch (SQLException ex) {
 			ex.printStackTrace();
-			cex = new CustomException(ex.getMessage());
+			throw ex;
 		} finally {
 			// Close resources
 			if (rs != null)
@@ -103,7 +129,7 @@ public class Dboperation {
 	}
 
 	public HashMap<Class<?>, List<?>> ExecuteStoredProcedure(String procedureName, ArrayList<SQLParameter> parameters,
-			Map<Class<?>, Integer> resultMappings, CustomException cex) throws SQLException {
+			Map<Class<?>, Integer> resultMappings) throws SQLException {
 		HashMap<Class<?>, List<?>> resultMap = new HashMap<>();
 		Connection con = null;
 		CallableStatement cs = null;
@@ -158,7 +184,7 @@ public class Dboperation {
 
 		} catch (SQLException ex) {
 			ex.printStackTrace();
-			cex = new CustomException(ex.getMessage());
+			throw ex;
 		} finally {
 			// Close Resources
 			if (rs != null)
@@ -172,7 +198,7 @@ public class Dboperation {
 		return resultMap;
 	}
 
-	public void insertRecord(Object obj, String tableName, CustomException cex)
+	public void insertRecord(Object obj, String tableName)
 			throws SQLException, IllegalArgumentException, IllegalAccessException {
 		Class<?> clazz = obj.getClass();
 		Field[] fields = clazz.getDeclaredFields();
@@ -220,7 +246,7 @@ public class Dboperation {
 			con.commit();
 		} catch (SQLException ex) {
 			con.rollback();
-			cex = new CustomException(ex.getMessage());
+			throw ex;
 
 		} finally {
 			if (ps != null) {
@@ -234,7 +260,7 @@ public class Dboperation {
 
 	}
 
-	public <T> int insertBatch(List<T> objectList, String tableName, CustomException cex) throws Exception {
+	public <T> int insertBatch(List<T> objectList, String tableName) throws Exception {
 		if (objectList == null || objectList.isEmpty())
 			return 0;
 
@@ -290,14 +316,12 @@ public class Dboperation {
 			try {
 				if (con != null) {
 					con.rollback();
-					cex = new CustomException(ex.getMessage());
 					System.out.println("Transaction rolled back due to error.");
-					
+					throw ex;
 				}
 			} catch (SQLException rollbackEx) {
-				cex = new CustomException(ex.getMessage());
 				System.err.println("Rollback failed: " + rollbackEx.getMessage());
-				throw new SQLException(rollbackEx.getMessage());
+				throw ex;
 			}
 			ex.printStackTrace(); // Properly print exception
 		} finally {
@@ -310,7 +334,7 @@ public class Dboperation {
 		return insertedCount;
 	}
 
-	public Map<Integer, Object> executeQueryGeneric(String sql, ArrayList<SQLParameter> parameters, CustomException cex)
+	public Map<Integer, Object> executeQueryGeneric(String sql, ArrayList<SQLParameter> parameters)
 			throws SQLException {
 		Map<Integer, Object> resultMap = new HashMap<>(); // Map of result index to data
 		Connection con = null;
@@ -364,9 +388,9 @@ public class Dboperation {
 				}
 			} catch (SQLException ex) {
 				ex.printStackTrace();
-				cex = new CustomException(ex.getMessage());
+				throw ex;
 			}
-			cex = new CustomException(e.getMessage());
+			throw e;
 		} finally {
 			if (ps != null)
 				ps.close();
